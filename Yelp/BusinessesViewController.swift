@@ -8,52 +8,112 @@
 
 import UIKit
 
-class BusinessesViewController: UIViewController {
+class BusinessesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, FiltersViewControllerDelegate {
     
-    var businesses: [Business]!
+    //var businesses: [Business]!
+    var filteredBusinesses: [Business]!
+    var currentFilter: Filter!
+    
+    @IBOutlet weak var tableView: UITableView!
+    @IBOutlet weak var searchBar: UISearchBar!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        Business.searchWithTerm(term: "Thai", completion: { (businesses: [Business]?, error: Error?) -> Void in
-            
-            self.businesses = businesses
-            if let businesses = businesses {
-                for business in businesses {
-                    print(business.name!)
-                    print(business.address!)
-                }
-            }
-            
-            }
-        )
+        self.currentFilter = Filter()
         
-        /* Example of Yelp search with more search options specified
-         Business.searchWithTerm("Restaurants", sort: .Distance, categories: ["asianfusion", "burgers"], deals: true) { (businesses: [Business]!, error: NSError!) -> Void in
-         self.businesses = businesses
-         
-         for business in businesses {
-         print(business.name!)
-         print(business.address!)
-         }
-         }
-         */
+        self.navigationItem.titleView = searchBar
+        searchBar.delegate = self
         
+        tableView.delegate = self
+        tableView.dataSource = self
+        tableView.rowHeight = UITableViewAutomaticDimension
+        tableView.estimatedRowHeight = 120
+        
+        updateSearchResults()
     }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if filteredBusinesses != nil {
+            return filteredBusinesses.count
+        } else {
+            print("uninitialized table data")
+            return 0
+        }
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "BusinessTableCell", for: indexPath) as! BusinessTableCell
+        cell.business = filteredBusinesses[indexPath.row]
+        
+        return cell
+    }
+    
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
     
-    /*
-     // MARK: - Navigation
-     
-     // In a storyboard-based application, you will often want to do a little preparation before navigation
-     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-     // Get the new view controller using segue.destinationViewController.
-     // Pass the selected object to the new view controller.
-     }
-     */
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        // Get the new view controller using segue.destinationViewController.
+        print("prepare segue")
+        
+        let destinationController = segue.destination as! UINavigationController
+        let filtersController = destinationController.topViewController as! FiltersViewController
+        filtersController.delegate = self
+    }
     
+    // This method updates filteredData based on the text in the Search Box
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        // When there is no text, filteredData is the same as the original data
+        // When user has entered text into the search box
+        // Use the filter method to iterate over all items in the data array
+        // For each item, return true if the item should be included and false if the
+        // item should NOT be included
+        if searchText.isEmpty {
+            print("cleared search text")
+            self.currentFilter.searchTerm = "Restaurants"
+            searchBarSearchButtonClicked(searchBar)
+        } else {
+            self.currentFilter.searchTerm = searchText
+        }
+    }
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        // When there is no text, filteredData is the same as the original data
+        // When user has entered text into the search box
+        // Use the filter method to iterate over all items in the data array
+        // For each item, return true if the item should be included and false if the
+        // item should NOT be included
+        if self.currentFilter.searchTerm.isEmpty {
+            print("!!searching without a search term")
+        } else {
+            print("searching for \(self.currentFilter.searchTerm)")
+        }
+        
+        updateSearchResults()
+        perform(#selector(dismissSearchKeyboard))
+    }
+    
+    // Update the results based on passed in filters
+    func filtersViewController(filtersViewController: FiltersViewController, filter: Filter) {
+        self.currentFilter = filter
+
+        updateSearchResults()
+    }
+    
+    func updateSearchResults() {
+        Business.searchWithFilter(self.currentFilter!, completion: { (businesses: [Business]?, error: Error?) -> Void in
+            self.filteredBusinesses = businesses
+            self.tableView.reloadData()
+            
+            }
+        )
+    }
+    
+    func dismissSearchKeyboard() {
+        print("dimsiss search")
+        self.searchBar.endEditing(true)
+    }
 }
