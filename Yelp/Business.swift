@@ -84,15 +84,7 @@ class Business: NSObject {
         return businesses
     }
     
-    class func searchWithTerm(term: String, completion: @escaping ([Business]?, Error?) -> Void) {
-        _ = YelpClient.sharedInstance.searchWithTerm(term, completion: completion)
-    }
-    
-    class func searchWithTerm(term: String, sort: YelpSortMode?, categories: [String]?, deals: Bool?, completion: @escaping ([Business]?, Error?) -> Void) -> Void {
-        _ = YelpClient.sharedInstance.searchWithTerm(term, sort: sort, categories: categories, deals: deals, completion: completion)
-    }
-    
-    class func searchWithFilter(_ filter: Filter, completion: @escaping ([Business]?, Error?) -> Void) {
-        _ = YelpClient.sharedInstance.searchWithTerm(filter.searchTerm, sort: filter.sortMode, categories: filter.categories, deals: filter.deals, completion: completion)
+    class func searchWithFilter(_ filter: Filter, page: Int = 0, completion: @escaping ([Business]?, Error?) -> Void) {
+        _ = YelpClient.sharedInstance.searchWithTerm(filter.searchTerm, sort: filter.sortMode, categories: filter.categories, deals: filter.deals, distance: filter.distance, page: page, completion: completion)
     }
 }

@@ -8,11 +8,15 @@
 
 import UIKit
 
-class BusinessesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, FiltersViewControllerDelegate {
+class BusinessesViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, UIScrollViewDelegate, FiltersViewControllerDelegate {
     
     //var businesses: [Business]!
     var filteredBusinesses: [Business]!
     var currentFilter: Filter!
+    var currentPage = 0
+    // infinite scrooooll
+    var isDataLoading = false
+    var loadingMoreView:InfiniteScrollActivityView?
     
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var searchBar: UISearchBar!
@@ -23,12 +27,25 @@ class BusinessesViewController: UIViewController, UITableViewDataSource, UITable
         self.currentFilter = Filter()
         
         self.navigationItem.titleView = searchBar
+        self.navigationController?.navigationBar.barTintColor = UIColor.red
+        
         searchBar.delegate = self
         
         tableView.delegate = self
         tableView.dataSource = self
         tableView.rowHeight = UITableViewAutomaticDimension
         tableView.estimatedRowHeight = 120
+        
+        
+        // Set up Infinite Scroll loading indicator
+        let frame = CGRect(x: 0, y: tableView.contentSize.height, width: tableView.bounds.size.width, height: InfiniteScrollActivityView.defaultHeight)
+        loadingMoreView = InfiniteScrollActivityView(frame: frame)
+        loadingMoreView!.isHidden = true
+        tableView.addSubview(loadingMoreView!)
+        
+        var insets = tableView.contentInset;
+        insets.bottom += InfiniteScrollActivityView.defaultHeight;
+        tableView.contentInset = insets
         
         updateSearchResults()
     }
@@ -49,6 +66,26 @@ class BusinessesViewController: UIViewController, UITableViewDataSource, UITable
         return cell
     }
     
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if !isDataLoading {
+            // Calculate the position of one screen length before the bottom of the results
+            let scrollViewContentHeight = tableView.contentSize.height
+            let scrollOffsetThreshold = scrollViewContentHeight - tableView.bounds.size.height
+            
+            // When the user has scrolled past the threshold, start requesting
+            if(scrollView.contentOffset.y > scrollOffsetThreshold && tableView.isDragging) {
+                isDataLoading = true
+                currentPage += 1
+                
+                // Update position of loadingMoreView, and start loading indicator
+                let frame = CGRect(x: 0, y: tableView.contentSize.height, width: tableView.bounds.size.width, height: InfiniteScrollActivityView.defaultHeight)
+                loadingMoreView?.frame = frame
+                loadingMoreView!.startAnimating()
+                
+                loadMoreData()
+            }
+        }
+    }
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
@@ -105,11 +142,22 @@ class BusinessesViewController: UIViewController, UITableViewDataSource, UITable
     
     func updateSearchResults() {
         Business.searchWithFilter(self.currentFilter!, completion: { (businesses: [Business]?, error: Error?) -> Void in
+            self.currentPage = 0
             self.filteredBusinesses = businesses
             self.tableView.reloadData()
-            
+        })
+    }
+    
+    func loadMoreData() {
+        Business.searchWithFilter(self.currentFilter!, page: currentPage, completion: { (businesses: [Business]?, error: Error?) -> Void in
+            if let biz = businesses {
+                self.filteredBusinesses.append(contentsOf: biz)
+                self.tableView.reloadData()
             }
-        )
+            self.isDataLoading = false
+            // Stop the loading indicator
+            self.loadingMoreView!.stopAnimating()
+        })
     }
     
     func dismissSearchKeyboard() {
